@@ -50,7 +50,16 @@ func Handler() http.Handler {
 }
 
 func containsTrigger(body string) bool {
-	return strings.Contains(strings.ToLower(body), "@nopejs")
+	return strings.Contains(strings.ToLower(body), "@nopejsbot")
+}
+
+func extractPrompt(body string) string {
+	lower := strings.ToLower(body)
+	index := strings.Index(lower, "@nopejsbot")
+	if index == -1 {
+		return strings.TrimSpace(body)
+	}
+	return strings.TrimSpace(body[index+len("@nopejsbot"):])
 }
 
 func handleComment(event *webhookGithub.IssueCommentPayload) {
@@ -62,7 +71,9 @@ func handleComment(event *webhookGithub.IssueCommentPayload) {
 		return
 	}
 
-	reply, err := ai.ExplainDiff(ctx, diff)
+	prompt := extractPrompt(event.Comment.Body)
+
+	reply, err := ai.ExplainDiff(ctx, diff, prompt)
 	if err != nil {
 		fmt.Println("AI error:", err)
 		return
@@ -102,7 +113,7 @@ func postComment(ctx context.Context, ev *webhookGithub.IssueCommentPayload, bod
 	client := apiGithub.NewClient(tc)
 
 	comment := &apiGithub.IssueComment{
-		Body: apiGithub.String("🤖 NopeJS:\n" + body),
+		Body: apiGithub.String("NopeJSbot:\n" + body),
 	}
 
 	_, _, err := client.Issues.CreateComment(
