@@ -2,14 +2,14 @@ package ai
 
 import (
 	"context"
-	"os"
 	"fmt"
+	"os"
 
 	"github.com/google/generative-ai-go/genai"
 	"google.golang.org/api/option"
 )
 
-func ExplainDiff(ctx context.Context, diff string) (string, error) {
+func ExplainDiff(ctx context.Context, userPrompt string, diff string) (string, error) {
 	apiKey := os.Getenv("GEMINI_API_KEY")
 	if apiKey == "" {
 		return "", fmt.Errorf("GEMINI_API_KEY not set")
@@ -17,16 +17,22 @@ func ExplainDiff(ctx context.Context, diff string) (string, error) {
 
 	client, err := genai.NewClient(ctx, option.WithAPIKey(apiKey))
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("gemini client init error: %w", err)
 	}
 	defer client.Close()
 
 	model := client.GenerativeModel("gemini-2.5-flash")
-	prompt := "Explain the following Git diff in simple terms:\n" + diff
+
+	prompt := fmt.Sprintf(
+		`You are an AI assistant helping review GitHub pull requests.
+		 A user has commented: "%s"
+
+		 Please analyze and respond based on the following Git diff:
+		 %s`, userPrompt, diff)
 
 	resp, err := model.GenerateContent(ctx, genai.Text(prompt))
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("gemini generation error: %w", err)
 	}
 
 	var result string
@@ -37,7 +43,8 @@ func ExplainDiff(ctx context.Context, diff string) (string, error) {
 			}
 		}
 	}
+	if result == "" {
+		return "", fmt.Errorf("no content returned by gemini")
+	}
 	return result, nil
 }
-
-var ErrMissingAPIKey = fmt.Errorf("GEMINI_API_KEY environment variable not set")
