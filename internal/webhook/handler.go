@@ -85,7 +85,10 @@ func handleComment(event *webhookGithub.IssueCommentPayload) {
 }
 
 func fetchDiff(ctx context.Context, ev *webhookGithub.IssueCommentPayload) (string, error) {
-	client := apiGithub.NewClient(nil)
+	token := os.Getenv("GH_TOKEN")
+    ts := oauth2.StaticTokenSource(&oauth2.Token{AccessToken: token})
+    tc := oauth2.NewClient(ctx, ts)
+    client := apiGithub.NewClient(tc)
 
 	prNum := int(ev.Issue.Number)
 	repo := ev.Repository.Name
